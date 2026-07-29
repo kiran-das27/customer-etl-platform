@@ -1,4 +1,5 @@
 pipeline {
+
     agent any
 
     stages {
@@ -8,6 +9,25 @@ pipeline {
                 echo 'Repository checked out successfully.'
                 sh 'pwd'
                 sh 'ls -la'
+            }
+        }
+
+        stage('Python Version') {
+            steps {
+                sh 'python3 --version'
+                sh 'pip3 --version'
+            }
+        }
+
+        stage('Build Wheel') {
+            steps {
+                sh 'python3 setup.py bdist_wheel'
+            }
+        }
+
+        stage('Verify Artifact') {
+            steps {
+                sh 'ls -R dist'
             }
         }
 
