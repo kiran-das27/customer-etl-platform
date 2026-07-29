@@ -25,6 +25,12 @@ pipeline {
             }
         }
 
+        stage('Archive Artifact') {
+            steps {
+                archiveArtifacts artifacts: 'dist/*.whl', fingerprint: true
+            }
+        }
+        
         stage('Verify Artifact') {
             steps {
                 sh 'ls -R dist'
