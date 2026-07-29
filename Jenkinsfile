@@ -2,6 +2,12 @@ pipeline {
 
     agent any
 
+    environment {
+            AWS_REGION = 'us-east-1'
+            ECR_REPO = 'customer-etl'
+            ECR_URI = '082787299786.dkr.ecr.us-east-1.amazonaws.com/customer-etl'
+        }
+
     stages {
 
         stage('Checkout Verification') {
