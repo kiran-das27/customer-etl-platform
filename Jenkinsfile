@@ -66,6 +66,22 @@ pipeline {
             }
         }
 
+        stage('Tag Docker Image') {
+            steps {
+                sh '''
+                    docker tag \
+                    customer-etl:${BUILD_NUMBER} \
+                    ${ECR_URI}:${BUILD_NUMBER}
+
+                    docker tag \
+                    customer-etl:${BUILD_NUMBER} \
+                    ${ECR_URI}:latest
+
+                    docker images
+                '''
+            }
+        }
+
         stage('Verify Artifact') {
             steps {
                 sh 'ls -R dist'
