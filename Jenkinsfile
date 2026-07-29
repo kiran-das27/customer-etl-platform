@@ -30,7 +30,16 @@ pipeline {
                 archiveArtifacts artifacts: 'dist/*.whl', fingerprint: true
             }
         }
-        
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build \
+                    -t customer-etl:${BUILD_NUMBER} .
+                    """
+             }
+        }
+
         stage('Verify Artifact') {
             steps {
                 sh 'ls -R dist'
