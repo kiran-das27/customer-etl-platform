@@ -82,6 +82,15 @@ pipeline {
             }
         }
 
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                    docker push ${ECR_URI}:${BUILD_NUMBER}
+                    docker push ${ECR_URI}:latest
+                '''
+            }
+        }
+
         stage('Verify Artifact') {
             steps {
                 sh 'ls -R dist'
