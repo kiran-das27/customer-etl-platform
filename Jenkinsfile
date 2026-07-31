@@ -1,7 +1,7 @@
 pipeline {
 
     agent {
-        label 'docker-cloud'
+        label 'docker-dynamic'
         }
 
     environment {
