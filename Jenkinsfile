@@ -6,8 +6,6 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        ECR_REPO   = 'customer-etl'
-        ECR_URI    = '082787299786.dkr.ecr.us-east-1.amazonaws.com/customer-etl'
     }
 
     stages {
@@ -29,33 +27,15 @@ pipeline {
 
         stage('Build Wheel') {
             steps {
+                echo 'Building Python wheel...'
                 sh 'python3 setup.py bdist_wheel'
             }
         }
 
         stage('Archive Artifact') {
             steps {
+                echo 'Archiving Python wheel...'
                 archiveArtifacts artifacts: 'dist/*.whl', fingerprint: true
-            }
-        }
-
-        stage('Build and Push Docker Image') {
-            steps {
-                container('kaniko') {
-                    sh '''
-                        /kaniko/executor \
-                            --context "${WORKSPACE}" \
-                            --dockerfile "${WORKSPACE}/Dockerfile" \
-                            --destination "${ECR_URI}:${BUILD_NUMBER}" \
-                            --destination "${ECR_URI}:latest"
-                    '''
-                }
-            }
-        }
-
-        stage('Verify Artifact') {
-            steps {
-                sh 'ls -R dist'
             }
         }
 
@@ -95,13 +75,14 @@ pipeline {
 
                         echo "Creating application workspace directory..."
 
-                        databricks workspace mkdirs /Workspace/Shared/customer-etl
+                        databricks workspace mkdirs \
+                            /Workspace/Shared/customer-etl
 
-                        echo "Uploading application source..."
+                        echo "Uploading Spark application..."
 
                         databricks workspace import \
-                            src/customer_job.py \
                             /Workspace/Shared/customer-etl/customer_job.py \
+                            --file src/customer_job.py \
                             --language PYTHON \
                             --overwrite
                     '''
@@ -119,11 +100,17 @@ pipeline {
                         export DATABRICKS_HOST="${DATABRICKS_HOST}"
                         export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
 
-                        echo "Uploading Python wheel..."
+                        echo "Finding wheel..."
 
-                        databricks workspace import-dir \
-                            dist \
-                            /Workspace/Shared/customer-etl/dist \
+                        WHEEL=$(ls dist/*.whl | head -1)
+                        WHEEL_NAME=$(basename "$WHEEL")
+
+                        echo "Uploading wheel: $WHEEL_NAME"
+
+                        databricks workspace import \
+                            "/Workspace/Shared/customer-etl/$WHEEL_NAME" \
+                            --file "$WHEEL" \
+                            --format RAW \
                             --overwrite
                     '''
                 }
@@ -140,7 +127,7 @@ pipeline {
                         export DATABRICKS_HOST="${DATABRICKS_HOST}"
                         export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
 
-                        echo "Verifying Databricks deployment..."
+                        echo "Verifying Databricks Workspace..."
 
                         databricks workspace list \
                             /Workspace/Shared/customer-etl
