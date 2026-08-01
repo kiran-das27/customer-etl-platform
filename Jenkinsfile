@@ -6,6 +6,8 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
+        DATABRICKS_HOST = credentials('databricks-host')
+        DATABRICKS_TOKEN = credentials('databricks-token')
     }
 
     stages {
@@ -20,8 +22,10 @@ pipeline {
 
         stage('Python Version') {
             steps {
-                sh 'python3 --version'
-                sh 'pip3 --version'
+                sh '''
+                    python3 --version
+                    pip3 --version
+                '''
             }
         }
 
@@ -59,11 +63,81 @@ pipeline {
                     echo "Hostname:"
                     hostname
 
-                    echo "OS:"
-                    cat /etc/os-release | head
-
                     echo "Python:"
                     python3 --version
+
+                    echo "Databricks CLI:"
+                    databricks --version
+                '''
+            }
+        }
+
+        stage('Verify Databricks Connection') {
+            steps {
+                sh '''
+                    export DATABRICKS_HOST="${DATABRICKS_HOST}"
+                    export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
+
+                    echo "Testing Databricks connection..."
+                    databricks workspace list /
+                '''
+            }
+        }
+
+        stage('Deploy Python Application') {
+            steps {
+                sh '''
+                    export DATABRICKS_HOST="${DATABRICKS_HOST}"
+                    export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
+
+                    echo "Creating application workspace directory..."
+
+                    databricks workspace mkdirs \
+                        /Workspace/Shared/customer-etl
+
+                    echo "Uploading application..."
+
+                    databricks workspace import \
+                        /Workspace/Shared/customer-etl/customer_job.py \
+                        --file src/customer_job.py \
+                        --format SOURCE \
+                        --overwrite
+
+                    echo "Application uploaded successfully."
+                '''
+            }
+        }
+
+        stage('Deploy Wheel') {
+            steps {
+                sh '''
+                    export DATABRICKS_HOST="${DATABRICKS_HOST}"
+                    export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
+
+                    WHEEL=$(find dist -name "*.whl" | head -1)
+
+                    echo "Uploading wheel: ${WHEEL}"
+
+                    databricks workspace import \
+                        /Workspace/Shared/customer-etl/$(basename "${WHEEL}") \
+                        --file "${WHEEL}" \
+                        --format AUTO \
+                        --overwrite
+
+                    echo "Wheel uploaded successfully."
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                    export DATABRICKS_HOST="${DATABRICKS_HOST}"
+                    export DATABRICKS_TOKEN="${DATABRICKS_TOKEN}"
+
+                    echo "Databricks workspace contents:"
+                    databricks workspace list \
+                        /Workspace/Shared/customer-etl
                 '''
             }
         }
@@ -71,14 +145,6 @@ pipeline {
         stage('Verify Artifact') {
             steps {
                 sh 'ls -lh dist/'
-            }
-        }
-
-        stage('Check Databricks CLI') {
-            steps {
-                sh '''
-                    databricks --version || true
-                '''
             }
         }
     }
