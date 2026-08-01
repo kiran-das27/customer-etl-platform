@@ -2,13 +2,11 @@ pipeline {
 
     agent {
         label 'jenkins-k8s-agent'
-        }
+    }
 
     environment {
-            AWS_REGION = 'us-east-1'
-            ECR_REPO = 'customer-etl'
-            ECR_URI = '082787299786.dkr.ecr.us-east-1.amazonaws.com/customer-etl'
-        }
+        AWS_REGION = 'us-east-1'
+    }
 
     stages {
 
@@ -27,6 +25,15 @@ pipeline {
             }
         }
 
+        stage('Validate Application') {
+            steps {
+                sh '''
+                    python3 -m py_compile src/customer_job.py
+                    echo "Python application validation successful."
+                '''
+            }
+        }
+
         stage('Build Wheel') {
             steps {
                 sh 'python3 setup.py bdist_wheel'
@@ -39,25 +46,33 @@ pipeline {
             }
         }
 
-        stage('Build and Push Docker Image') {
+        stage('Verify AWS Identity') {
             steps {
-                container('kaniko') {
-                    sh '''
-                        /kaniko/executor \
-                            --context "${WORKSPACE}" \
-                            --dockerfile "${WORKSPACE}/Dockerfile" \
-                            --destination "${ECR_URI}:${BUILD_NUMBER}" \
-                            --destination "${ECR_URI}:latest"
-                    '''
-                }
+                sh 'aws sts get-caller-identity'
+            }
+        }
+
+        stage('Verify Kubernetes Agent') {
+            steps {
+                sh '''
+                    echo "Running inside Kubernetes Jenkins agent"
+                    echo "Hostname:"
+                    hostname
+
+                    echo "OS:"
+                    cat /etc/os-release | head
+
+                    echo "Python:"
+                    python3 --version
+                '''
             }
         }
 
         stage('Verify Artifact') {
             steps {
-                sh 'ls -R dist'
+                sh 'ls -lh dist/'
             }
         }
-
     }
 }
+
