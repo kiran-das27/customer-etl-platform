@@ -73,6 +73,14 @@ pipeline {
                 sh 'ls -lh dist/'
             }
         }
+
+        stage('Check Databricks CLI') {
+            steps {
+                sh '''
+                    databricks --version || true
+                '''
+            }
+        }
     }
 }
 
