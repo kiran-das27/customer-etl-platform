@@ -39,57 +39,17 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build and Push Docker Image') {
             steps {
-                sh """
-                    docker build \
-                    -t customer-etl:${BUILD_NUMBER} .
-                    """
-             }
-        }
-
-        stage('Verify AWS Identity') {
-            steps {
-                sh '''
-                    aws sts get-caller-identity
-                '''
-            }
-        }
-
-        stage('Login to ECR') {
-            steps {
-                sh '''
-                    aws ecr get-login-password \
-                        --region $AWS_REGION | \
-                    docker login \
-                        --username AWS \
-                        --password-stdin $ECR_URI
-                '''
-            }
-        }
-
-        stage('Tag Docker Image') {
-            steps {
-                sh '''
-                    docker tag \
-                    customer-etl:${BUILD_NUMBER} \
-                    ${ECR_URI}:${BUILD_NUMBER}
-
-                    docker tag \
-                    customer-etl:${BUILD_NUMBER} \
-                    ${ECR_URI}:latest
-
-                    docker images
-                '''
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh '''
-                    docker push ${ECR_URI}:${BUILD_NUMBER}
-                    docker push ${ECR_URI}:latest
-                '''
+                container('kaniko') {
+                    sh '''
+                        /kaniko/executor \
+                            --context "${WORKSPACE}" \
+                            --dockerfile "${WORKSPACE}/Dockerfile" \
+                            --destination "${ECR_URI}:${BUILD_NUMBER}" \
+                            --destination "${ECR_URI}:latest"
+                    '''
+                }
             }
         }
 
