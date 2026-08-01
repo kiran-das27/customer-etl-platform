@@ -1,7 +1,7 @@
 pipeline {
 
     agent {
-        label 'docker-dynamic'
+        label 'jenkins-k8s-agent'
         }
 
     environment {
@@ -47,7 +47,7 @@ pipeline {
                     """
              }
         }
-        
+
         stage('Verify AWS Identity') {
             steps {
                 sh '''
